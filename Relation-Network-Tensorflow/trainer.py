@@ -12,6 +12,7 @@ from input_ops import create_input_ops
 import os
 import time
 import tensorflow as tf
+from tensorflow.python import debug as tf_debug
 
 
 class Trainer(object):
@@ -112,6 +113,8 @@ class Trainer(object):
         )
         self.session = self.supervisor.prepare_or_wait_for_session(config=session_config)
 
+        # self.session = tf_debug.LocalCLIDebugWrapperSession(self.session)
+
         self.ckpt_path = config.checkpoint
         if self.ckpt_path is not None:
             log.info("Checkpoint path: %s", self.ckpt_path)
@@ -163,6 +166,7 @@ class Trainer(object):
             fetch, feed_dict=self.model.get_feed_dict(batch_chunk, step=step)
         )
         [step, accuracy, summary, loss] = fetch_values[:4]
+
 
         try:
             if self.plot_summary_op in fetch:

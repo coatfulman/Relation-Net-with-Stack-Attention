@@ -154,17 +154,16 @@ class Model(object):
                 #                        tf.multiply(weights_1, all_question, name="step1_mul"), name="step1_add")
                 # weights_2 = get_weights(all_question_1, converted_feature)
 
-                all_g = tf.multiply(all_g, weights_1, name="weighting_all_g") * f_len
-
-                # new_question = tf.add(all_question, \
-                #                        tf.multiply(weights_2, all_question_1, name="final_mul"), name="final_add")
-
                 # check_tensor(all_g, "all_g") [d*d, batch, concated_feature_dim]
-                # final_question [d*d, batch, 11], should merge into all_g
 
-                # old_len = all_g.get_shape().as_list()[2]
-                # features, _ = tf.split(all_g, [old_len - q_len,q_len], axis=2, name="split_old")
-                # all_g = tf.concat([features, new_question], axis=2)
+                old_len = all_g.get_shape().as_list()[2]
+                features, questions = tf.split(all_g, [old_len - q_len,q_len], axis=2, name="split_old")
+                weighted_features = tf.multiply(features, weights_1, name='weight_feature_1')
+                weighted_features = weighted_features * \
+                                    (tf.reduce_mean(features, axis=2, keepdims=True) / \
+                                     tf.reduce_mean(weighted_features, axis=2, keepdims=True))
+
+                # all_g = tf.concat([weighted_features, questions], axis=2)
 
                 # ====================================================================================================
 
