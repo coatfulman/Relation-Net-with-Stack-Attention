@@ -173,17 +173,17 @@ class Model(object):
             # check_tensor(all_f)
             # print("=======")
 
-            q_len = all_q.get_shape().as_list()[2]
-
-            with tf.variable_scope(scope, reuse=tf.AUTO_REUSE) as scope:
+            with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+                q_len = all_q.get_shape().as_list()[2]
                 h = tf.nn.tanh(tf.add(tl.fully_connected(all_f, q_len, biases_initializer=None, scope="IA_fc"),\
                                       tl.fully_connected(all_q, q_len, scope="QA_fc"),\
                                       name='weight_add'), name='weight_tanh')
 
                 weight = tf.nn.softmax(\
-                    tl.fully_connected(h, 1, scope="P_fc"), axis=0, name="weight_softmax")
+                    tl.fully_connected(h, 1, scope="to_weight"), axis=0, name="weight_softmax")
+            check_tensor(weight, name='weight')
+            return weight
 
-                return weight
 
         def f_phi(g, scope='f_phi'):
             with tf.variable_scope(scope) as scope:
