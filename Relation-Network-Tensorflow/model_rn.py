@@ -3,14 +3,17 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import numpy as np
+import tensorflow.contrib.layers as tl
 import tensorflow.contrib.slim as slim
 try:
     import tfplot
 except:
+    print("Please check tfplot!!!")
     pass
 
 from ops import conv2d, fc
-from util import log
+from util import log, check_tensor
 
 from vqa_util import question2str, answer2str
 
@@ -82,6 +85,9 @@ class Model(object):
         def g_theta(o_i, o_j, q, scope='g_theta', reuse=True):
             with tf.variable_scope(scope, reuse=reuse) as scope:
                 if not reuse: log.warn(scope.name)
+                # check_tensor(o_i, name="o_i")  [batch, 26]
+                # check_tensor(o_j, name="o_j")  [batch, 26]
+                # check_tensor(q, name='q')      [batch, 11]
                 g_1 = fc(tf.concat([o_i, o_j, q], axis=1), 256, name='g_1')
                 g_2 = fc(g_1, 256, name='g_2')
                 g_3 = fc(g_2, 256, name='g_3')
@@ -91,6 +97,7 @@ class Model(object):
         # Classifier: takes images as input and outputs class label [B, m]
         def CONV(img, q, scope='CONV'):
             with tf.variable_scope(scope) as scope:
+
                 log.warn(scope.name)
                 conv_1 = conv2d(img, conv_info[0], is_train, s_h=3, s_w=3, name='conv_1')
                 conv_2 = conv2d(conv_1, conv_info[1], is_train, s_h=3, s_w=3, name='conv_2')
@@ -101,13 +108,20 @@ class Model(object):
                 # g_theta = (o_i, o_j, q)
                 # conv_4 [B, d, d, k]
                 d = conv_4.get_shape().as_list()[1]
-                all_g = []
+                all_g, all_feature, all_question = [], [], []
+
                 for i in range(d*d):
                     o_i = conv_4[:, int(i / d), int(i % d), :]
                     o_i = concat_coor(o_i, i, d)
                     for j in range(d*d):
                         o_j = conv_4[:, int(j / d), int(j % d), :]
                         o_j = concat_coor(o_j, j, d)
+
+                        # ================================================================
+                        all_feature.append(tf.concat([o_i, o_j], axis=1))
+                        all_question.append(q)
+                        # ================================================================
+
                         if i == 0 and j == 0:
                             g_i_j = g_theta(o_i, o_j, q, reuse=False)
                         else:
@@ -115,8 +129,61 @@ class Model(object):
                         all_g.append(g_i_j)
 
                 all_g = tf.stack(all_g, axis=0)
+
+                # ====================================================================================================
+                # Added for weights before the first MLP.
+                all_question = tf.stack(all_question, axis=0)
+                all_feature = tf.stack(all_feature, axis=0)
+
+                q_len = all_question.get_shape().as_list()[2]
+                all_question = tf.stack(all_question, axis=0)
+                all_feature = tf.stack(all_feature, axis=0)
+
+                converted_feature = tf.nn.tanh(tl.fully_connected(\
+                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc'), name='convert_tanh')
+
+                # weights1, weights2 [d*d, batch, 1]
+                # all_question [d*d, batch, 11]
+
+                weights_1 = get_weights(all_question, converted_feature)
+                all_question_1 = tf.add(all_question, \
+                                       tf.multiply(weights_1, all_question, name="step1_mul"), name="step1_add")
+                weights_2 = get_weights(all_question_1, converted_feature)
+                all_g = tf.multiply(all_g, weights_2, name="weighting_all_g")
+
+                # new_question = tf.add(all_question, \
+                #                        tf.multiply(weights_2, all_question_1, name="final_mul"), name="final_add")
+
+                # check_tensor(all_g, "all_g") [d*d, batch, concated_feature_dim]
+                # final_question [d*d, batch, 11], should merge into all_g
+
+                # old_len = all_g.get_shape().as_list()[2]
+                # features, _ = tf.split(all_g, [old_len - q_len,q_len], axis=2, name="split_old")
+                # all_g = tf.concat([features, new_question], axis=2)
+
+                # ====================================================================================================
+
                 all_g = tf.reduce_mean(all_g, axis=0, name='all_g')
                 return all_g
+
+        def get_weights(all_q, all_f, scope = 'WEIGHTS'):
+            # all_q, all_f[d*d, batch, 11]
+            # weight [d*d, batch, 1]
+            # check_tensor(all_q)
+            # check_tensor(all_f)
+            # print("=======")
+
+            q_len = all_q.get_shape().as_list()[2]
+
+            with tf.variable_scope(scope, reuse=tf.AUTO_REUSE) as scope:
+                h = tf.nn.tanh(tf.add(tl.fully_connected(all_f, q_len, biases_initializer=None, scope="IA_fc"),\
+                                      tl.fully_connected(all_q, q_len, scope="QA_fc"),\
+                                      name='weight_add'), name='weight_tanh')
+
+                weight = tf.nn.softmax(\
+                    tl.fully_connected(h, 1, scope="P_fc"), axis=0, name="weight_softmax")
+
+                return weight
 
         def f_phi(g, scope='f_phi'):
             with tf.variable_scope(scope) as scope:
