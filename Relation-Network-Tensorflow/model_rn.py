@@ -136,6 +136,8 @@ class Model(object):
                 all_feature = tf.stack(all_feature, axis=0)
 
                 q_len = all_question.get_shape().as_list()[2]
+                f_len = all_feature.get_shape().as_list()[2]
+
                 all_question = tf.stack(all_question, axis=0)
                 all_feature = tf.stack(all_feature, axis=0)
 
@@ -146,10 +148,13 @@ class Model(object):
                 # all_question [d*d, batch, 11]
 
                 weights_1 = get_weights(all_question, converted_feature)
-                all_question_1 = tf.add(all_question, \
-                                       tf.multiply(weights_1, all_question, name="step1_mul"), name="step1_add")
-                weights_2 = get_weights(all_question_1, converted_feature)
-                all_g = tf.multiply(all_g, weights_2, name="weighting_all_g")
+
+                # weighted_feature_1 = tf.multiply(weights_1, all_feature, name="weight_feature_1") * f_len
+                # all_question_1 = tf.add(all_question, \
+                #                        tf.multiply(weights_1, all_question, name="step1_mul"), name="step1_add")
+                # weights_2 = get_weights(all_question_1, converted_feature)
+
+                all_g = tf.multiply(all_g, weights_1, name="weighting_all_g") * f_len
 
                 # new_question = tf.add(all_question, \
                 #                        tf.multiply(weights_2, all_question_1, name="final_mul"), name="final_add")
@@ -166,7 +171,7 @@ class Model(object):
                 all_g = tf.reduce_mean(all_g, axis=0, name='all_g')
                 return all_g
 
-        def get_weights(all_q, all_f, scope = 'WEIGHTS'):
+        def get_weights(all_q, all_f, scope='WEIGHTS'):
             # all_q, all_f[d*d, batch, 11]
             # weight [d*d, batch, 1]
             # check_tensor(all_q)
@@ -182,6 +187,7 @@ class Model(object):
                 weight = tf.nn.softmax(\
                     tl.fully_connected(h, 1, scope="to_weight"), axis=0, name="weight_softmax")
             check_tensor(weight, name='weight')
+            
             return weight
 
 
