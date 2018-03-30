@@ -42,3 +42,7 @@ def _infov(self, msg, *args, **kwargs):
     self.log(logging.INFO + 1, msg, *args, **kwargs)
 
 logging.Logger.infov = _infov
+
+
+def check_tensor(tensor, name='tensor'):
+    print(name + ": " + str(tensor.get_shape().as_list()) + '\n')
