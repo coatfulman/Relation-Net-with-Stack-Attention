@@ -141,8 +141,8 @@ class Model(object):
                 all_question = tf.stack(all_question, axis=0)
                 all_feature = tf.stack(all_feature, axis=0)
 
-                converted_feature = tf.nn.tanh(tl.fully_connected(\
-                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc'), name='convert_tanh')
+                converted_feature = tl.fully_connected(\
+                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc', activation_fn=tf.nn.tanh)
 
                 # weights1, weights2 [d*d, batch, 1]
                 # all_question [d*d, batch, 11]
@@ -180,14 +180,13 @@ class Model(object):
 
             with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
                 q_len = all_q.get_shape().as_list()[2]
-                h = tf.nn.tanh(tf.add(tl.fully_connected(all_f, q_len, biases_initializer=None, scope="IA_fc"),\
-                                      tl.fully_connected(all_q, q_len, scope="QA_fc"),\
-                                      name='weight_add'), name='weight_tanh')
+                h = tf.nn.tanh(tf.add(\
+                    tl.fully_connected(all_f, q_len, biases_initializer=None, activation_fn=None, scope="IA_fc"),\
+                    tl.fully_connected(all_q, q_len, activation_fn=None, scope="QA_fc"), name='weight_add'), name='weight_tanh')
 
                 weight = tf.nn.softmax(\
-                    tl.fully_connected(h, 1, scope="to_weight"), axis=0, name="weight_softmax")
-            check_tensor(weight, name='weight')
-            
+                    tl.fully_connected(h, 1, activation_fn=None, scope="to_weight"), axis=0, name="weight_softmax")
+
             return weight
 
 
