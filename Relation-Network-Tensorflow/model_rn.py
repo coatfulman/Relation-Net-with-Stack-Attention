@@ -49,6 +49,7 @@ class Model(object):
 
         self.build(is_train=is_train)
 
+
     def get_feed_dict(self, batch_chunk, step=None, is_training=None):
         fd = {
             self.img: batch_chunk['img'],  # [B, h, w, c]
@@ -138,9 +139,6 @@ class Model(object):
                 q_len = all_question.get_shape().as_list()[2]
                 f_len = all_feature.get_shape().as_list()[2]
 
-                all_question = tf.stack(all_question, axis=0)
-                all_feature = tf.stack(all_feature, axis=0)
-
                 converted_feature = tl.fully_connected(\
                     all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc', activation_fn=tf.nn.tanh)
 
@@ -156,14 +154,15 @@ class Model(object):
 
                 # check_tensor(all_g, "all_g") [d*d, batch, concated_feature_dim]
 
-                old_len = all_g.get_shape().as_list()[2]
-                features, questions = tf.split(all_g, [old_len - q_len,q_len], axis=2, name="split_old")
-                weighted_features = tf.multiply(features, weights_1, name='weight_feature_1')
-                weighted_features = weighted_features * \
-                                    (tf.reduce_mean(features, axis=2, keepdims=True) / \
-                                     tf.reduce_mean(weighted_features, axis=2, keepdims=True))
+                # old_len = all_g.get_shape().as_list()[2]
+                # features, questions = tf.split(all_g, [old_len - q_len,q_len], axis=2, name="split_old")
+                # weighted_features = tf.multiply(features, weights_1, name='weight_feature_1')
+                # final_features = weighted_features * \
+                #                     (tf.reduce_mean(features, axis=2, keepdims=True) / \
+                #                      tf.reduce_mean(weighted_features, axis=2, keepdims=True))
+                # all_g = tf.concat([final_features, questions], axis=2)
 
-                # all_g = tf.concat([weighted_features, questions], axis=2)
+                all_g = tf.multiply(all_g, weights_1, name="weight_all_g") * all_g.get_shape().as_list()[0]
 
                 # ====================================================================================================
 
