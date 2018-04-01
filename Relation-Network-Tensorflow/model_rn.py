@@ -113,7 +113,7 @@ class Model(object):
 
                 _ = tf.range(1, delta=1/d)
                 g = tf.stack( tf.meshgrid(_, _), -1 )[None] # [1, 4, 4, 2]
-                print ('\ng', g.shape, '\n') # after tile: g.shape = [shape[0], 4, 4, 2] = [16, 4, 4, 2]
+                # print ('\ng', g.shape, '\n') # after tile: g.shape = [shape[0], 4, 4, 2] = [16, 4, 4, 2]
                 net = tf.concat([ net, tf.tile(g, [shape[0],1,1,1]) ], axis=-1) # (16, 4, 4, 26=24+2)
 
                 # TODO: flatten
@@ -123,12 +123,12 @@ class Model(object):
                             for i in range(d*d) for j in range(d*d) ] # (256=16*16, batch, 63) 11+26+26=63
 
                 net = tf.concat(all_pairs, axis=0) # net=(4096, 63)
-                print ('\nnet cat', net.shape, '\n')
+                # print ('\nnet cat', net.shape, '\n')
 
                 g_1 = fc(net, 256, activation_fn=tf.nn.relu)
                 g_2 = fc(g_1, 256, activation_fn=tf.nn.relu)
                 g_3 = fc(g_2, 256, activation_fn=tf.nn.relu)
-                print ('\ng_3', g_3.shape, '\n')
+                # print ('\ng_3', g_3.shape, '\n')
 
                 net = tf.reshape(g_3, [d**4, shape[0], 256])
                 all_g = net
@@ -169,8 +169,9 @@ class Model(object):
 
                 all_question = tf.stack(all_question, axis=0)
                 all_feature = tf.stack(all_feature, axis=0)
-                q_len = all_question.get_shape().as_list()[2]
-                f_len = all_feature.get_shape().as_list()[2]
+                all_shape = all_question.get_shape().as_list() #
+
+                q_len = all_shape[2]
 
                 converted_feature = tl.fully_connected(\
                     all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc', activation_fn=tf.nn.tanh)
@@ -180,10 +181,13 @@ class Model(object):
 
                 weights_1 = get_weights(all_question, converted_feature)
 
-                # weighted_feature_1 = tf.multiply(weights_1, all_feature, name="weight_feature_1") * f_len
-                # all_question_1 = tf.add(all_question, \
-                #                        tf.multiply(weights_1, all_question, name="step1_mul"), name="step1_add")
-                # weights_2 = get_weights(all_question_1, converted_feature)
+                weighted_feature_1 = tf.multiply(weights_1, converted_feature, name="weight_feature_1") * q_len
+
+                weights_2 = get_weights(all_question, weighted_feature_1)
+
+                weighted_feature_2 = tf.multiply(weights_2, weighted_feature_1, name="weight_feature_2") * q_len
+
+                weights_3 = get_weights(all_question, weighted_feature_2)
 
                 # check_tensor(all_g, "all_g") [d*d, batch, concated_feature_dim]
 
@@ -195,7 +199,7 @@ class Model(object):
                 #                      tf.reduce_mean(weighted_features, axis=2, keepdims=True))
                 # all_g = tf.concat([final_features, questions], axis=2)
 
-                all_g = tf.multiply(all_g, weights_1, name="weight_all_g") * all_g.get_shape().as_list()[0]
+                all_g = tf.multiply(all_g, weights_3, name="weight_all_g") * all_g.get_shape().as_list()[0]
 
                 # ====================================================================================================
 
