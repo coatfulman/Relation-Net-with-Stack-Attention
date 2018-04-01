@@ -199,6 +199,13 @@ class Model(object):
                 #                      tf.reduce_mean(weighted_features, axis=2, keepdims=True))
                 # all_g = tf.concat([final_features, questions], axis=2)
 
+                # weight_name = np.arange(1, np.prod(weights_3.get_shape().as_list())+1).reshape(tf.squeeze(weights_3).get_shape().as_list()).tolist()
+                # tf.summary.scalar([['wei' + str(i)  for i in j] for j in weight_name], tf.squeeze(weights_3))
+
+                tf.summary.histogram('weights_1', weights_1)
+                tf.summary.histogram('weights_2', weights_2)
+                tf.summary.histogram('weights_3', weights_3)
+
                 all_g = tf.multiply(all_g, weights_3, name="weight_all_g") * all_g.get_shape().as_list()[0]
 
                 # ====================================================================================================
