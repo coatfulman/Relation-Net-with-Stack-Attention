@@ -202,6 +202,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=50)
+    parser.add_argument('--topk', type=int, default=128)
     parser.add_argument('--model', type=str, default='conv', choices=['rn', 'baseline'])
     parser.add_argument('--checkpoint_path', type=str)
     parser.add_argument('--train_dir', type=str)
