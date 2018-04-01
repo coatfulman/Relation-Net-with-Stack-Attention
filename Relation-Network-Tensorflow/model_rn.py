@@ -32,6 +32,7 @@ class Model(object):
         self.q_dim = self.config.data_info[3]
         self.a_dim = self.config.data_info[4]
         self.conv_info = self.config.conv_info
+        self.topk = self.config.topk
 
         # create placeholders for the input
         self.img = tf.placeholder(
@@ -176,30 +177,24 @@ class Model(object):
                 converted_feature = tl.fully_connected(\
                     all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc', activation_fn=tf.nn.tanh)
 
-                # weights1, weights2 [d*d, batch, 1]
+                # weights1, weights2, weights3 [d*d, batch, 1]
                 # all_question [d*d, batch, 11]
 
                 weights_1 = get_weights(all_question, converted_feature)
 
-                weighted_feature_1 = tf.multiply(weights_1, converted_feature, name="weight_feature_1") * q_len
 
-                weights_2 = get_weights(all_question, weighted_feature_1)
+                weights_1 = mask_weights(weights_1)
 
-                weighted_feature_2 = tf.multiply(weights_2, weighted_feature_1, name="weight_feature_2") * q_len
 
-                weights_3 = get_weights(all_question, weighted_feature_2)
+                # weighted_feature_1 = tf.multiply(weights_1, converted_feature, name="weight_feature_1") * q_len
+                #
+                # weights_2 = get_weights(all_question, weighted_feature_1)
+                #
+                # weighted_feature_2 = tf.multiply(weights_2, weighted_feature_1, name="weight_feature_2") * q_len
+                #
+                # weights_3 = get_weights(all_question, weighted_feature_2)
 
-                # check_tensor(all_g, "all_g") [d*d, batch, concated_feature_dim]
-
-                # old_len = all_g.get_shape().as_list()[2]
-                # features, questions = tf.split(all_g, [old_len - q_len,q_len], axis=2, name="split_old")
-                # weighted_features = tf.multiply(features, weights_1, name='weight_feature_1')
-                # final_features = weighted_features * \
-                #                     (tf.reduce_mean(features, axis=2, keepdims=True) / \
-                #                      tf.reduce_mean(weighted_features, axis=2, keepdims=True))
-                # all_g = tf.concat([final_features, questions], axis=2)
-
-                all_g = tf.multiply(all_g, weights_3, name="weight_all_g") * all_g.get_shape().as_list()[0]
+                all_g = tf.multiply(all_g, weights_1, name="weight_all_g") * self.topk
 
                 # ====================================================================================================
 
@@ -222,6 +217,13 @@ class Model(object):
 
             return weight
 
+        def mask_weights(weights):
+            trans_weight = tf.transpose(weights, [2, 1, 0])
+            vals, idx = tf.nn.top_k(trans_weight, k=self.topk)
+            kth = tf.reduce_min(vals, axis=2, keepdims=True)
+            mask = tf.cast(tf.greater_equal(weights, kth), weights.dtype)
+
+            return weights * mask
 
         def f_phi(g, scope='f_phi'):
             with tf.variable_scope(scope) as scope:

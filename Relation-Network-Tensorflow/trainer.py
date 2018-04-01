@@ -225,6 +225,7 @@ def main():
     parser.add_argument('--checkpoint', type=str, default=None)
     parser.add_argument('--dataset_path', type=str, default='Sort-of-CLEVR_default')
     parser.add_argument('--learning_rate', type=float, default=2.5e-4)
+    parser.add_argument('--topk', type=int, default=16)
     parser.add_argument('--lr_weight_decay', action='store_true', default=False)
     config = parser.parse_args()
 
