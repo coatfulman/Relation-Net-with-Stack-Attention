@@ -105,37 +105,70 @@ class Model(object):
                 conv_3 = conv2d(conv_2, conv_info[2], is_train, name='conv_3')
                 conv_4 = conv2d(conv_3, conv_info[3], is_train, name='conv_4')
 
-                # eq.1 in the paper
-                # g_theta = (o_i, o_j, q)
-                # conv_4 [B, d, d, k]
-                d = conv_4.get_shape().as_list()[1]
-                all_g, all_feature, all_question = [], [], []
 
-                for i in range(d*d):
-                    o_i = conv_4[:, int(i / d), int(i % d), :]
-                    o_i = concat_coor(o_i, i, d)
-                    for j in range(d*d):
-                        o_j = conv_4[:, int(j / d), int(j % d), :]
-                        o_j = concat_coor(o_j, j, d)
+##### Edited version
+                net = conv_4 # [16, 4, 4, 24]
+                shape = net.get_shape().as_list()
+                d = shape[2]
 
-                        # ================================================================
-                        all_feature.append(tf.concat([o_i, o_j], axis=1))
-                        all_question.append(q)
-                        # ================================================================
+                _ = tf.range(1, delta=1/d)
+                g = tf.stack( tf.meshgrid(_, _), -1 )[None] # [1, 4, 4, 2]
+                print ('\ng', g.shape, '\n') # after tile: g.shape = [shape[0], 4, 4, 2] = [16, 4, 4, 2]
+                net = tf.concat([ net, tf.tile(g, [shape[0],1,1,1]) ], axis=-1) # (16, 4, 4, 26=24+2)
 
-                        if i == 0 and j == 0:
-                            g_i_j = g_theta(o_i, o_j, q, reuse=False)
-                        else:
-                            g_i_j = g_theta(o_i, o_j, q, reuse=True)
-                        all_g.append(g_i_j)
+                # TODO: flatten
+                all_singletons = [ net[:, int(i / d), int(i % d), :] for i in range(d*d) ]  # (16, batch, 26)
 
-                all_g = tf.stack(all_g, axis=0)
+                all_pairs = [ tf.concat([all_singletons[i], all_singletons[j], q], axis=-1)  # q: (batch, 11)
+                            for i in range(d*d) for j in range(d*d) ] # (256=16*16, batch, 63) 11+26+26=63
+
+                net = tf.concat(all_pairs, axis=0) # net=(4096, 63)
+                print ('\nnet cat', net.shape, '\n')
+
+                g_1 = fc(net, 256, activation_fn=tf.nn.relu)
+                g_2 = fc(g_1, 256, activation_fn=tf.nn.relu)
+                g_3 = fc(g_2, 256, activation_fn=tf.nn.relu)
+                print ('\ng_3', g_3.shape, '\n')
+
+                net = tf.reshape(g_3, [d**4, shape[0], 256])
+                all_g = net
+
+                all_feature = [tf.concat([all_singletons[i], all_singletons[j]], axis=-1)
+                            for i in range(d*d) for j in range(d*d)] # (256, batch, 52)
+                all_question = tf.tile(q[None], [d**4, 1, 1]) #  (256, batch, 11)
+                # ================================================================
+
+##### End of Edited version
+####  Original RN
+                # d = conv_4.get_shape().as_list()[1]
+                # all_g, all_feature, all_question = [], [], []
+
+                # for i in range(d*d):
+                #     o_i = conv_4[:, int(i / d), int(i % d), :]
+                #     o_i = concat_coor(o_i, i, d)
+                #     for j in range(d*d):
+                #         o_j = conv_4[:, int(j / d), int(j % d), :]
+                #         o_j = concat_coor(o_j, j, d)
+
+                #         # ================================================================
+                #         all_feature.append(tf.concat([o_i, o_j], axis=1))
+                #         all_question.append(q)
+                #         # ================================================================
+
+                #         if i == 0 and j == 0:
+                #             g_i_j = g_theta(o_i, o_j, q, reuse=False)
+                #         else:
+                #             g_i_j = g_theta(o_i, o_j, q, reuse=True)
+                #         all_g.append(g_i_j)
+
+                # all_g = tf.stack(all_g, axis=0)
+####  End of Original RN
 
                 # ====================================================================================================
                 # Added for weights before the first MLP.
+
                 all_question = tf.stack(all_question, axis=0)
                 all_feature = tf.stack(all_feature, axis=0)
-
                 q_len = all_question.get_shape().as_list()[2]
                 f_len = all_feature.get_shape().as_list()[2]
 
@@ -167,17 +200,15 @@ class Model(object):
                 # ====================================================================================================
 
                 all_g = tf.reduce_mean(all_g, axis=0, name='all_g')
+
                 return all_g
 
         def get_weights(all_q, all_f, scope='WEIGHTS'):
             # all_q, all_f[d*d, batch, 11]
             # weight [d*d, batch, 1]
-            # check_tensor(all_q)
-            # check_tensor(all_f)
-            # print("=======")
 
             with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
-                q_len = all_q.get_shape().as_list()[2]
+                q_len = all_q.get_shape().as_list()[2] # 11
                 h = tf.nn.tanh(tf.add(\
                     tl.fully_connected(all_f, q_len, biases_initializer=None, activation_fn=None, scope="IA_fc"),\
                     tl.fully_connected(all_q, q_len, activation_fn=None, scope="QA_fc"), name='weight_add'), name='weight_tanh')

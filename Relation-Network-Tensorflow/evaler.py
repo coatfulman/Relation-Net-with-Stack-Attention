@@ -29,7 +29,7 @@ class EvalManager(object):
         self._predictions.append(prediction)
         self._groundtruths.append(groundtruth)
 
-    def report(self):
+    def report(self, name='some_model'):
         # report L2 loss
         log.info("Computing scores...")
         correct_prediction_nr = 0
@@ -56,6 +56,12 @@ class EvalManager(object):
         log.infov("Average accuracy of relational questions: {}%".format(avg_r*100))
         avg = float(correct_prediction_r+correct_prediction_nr)/(count_r+count_nr)
         log.infov("Average accuracy: {}%".format(avg*100))
+
+        with open("accuracy/" + name, "w+") as file:
+            file.writelines("Average accuracy of non-relational questions: {}%\n".format(avg_nr*100))
+            file.writelines("Average accuracy of relational questions: {}\n%".format(avg_r*100))
+            file.writelines("Average accuracy: {}%\n\n".format(avg*100))
+
 
 
 class Evaler(object):
@@ -152,7 +158,7 @@ class Evaler(object):
         except RuntimeError as e:
             log.warn(str(e))
 
-        evaler.report()
+        evaler.report(name=self.config.name)
         log.infov("Evaluation complete.")
 
     def run_single_step(self, batch, step=None, is_train=True):
@@ -201,6 +207,7 @@ def main():
     parser.add_argument('--train_dir', type=str)
     parser.add_argument('--dataset_path', type=str, default='Sort-of-CLEVR_default')
     parser.add_argument('--data_id', nargs='*', default=None)
+    parser.add_argument('--name', type=str, default="some_model")
     config = parser.parse_args()
 
     path = os.path.join('./datasets', config.dataset_path)
