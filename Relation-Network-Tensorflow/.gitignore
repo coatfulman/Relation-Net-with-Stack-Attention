@@ -102,3 +102,4 @@ ENV/
 
 # other stuff
 datasets/
+train_dir/
