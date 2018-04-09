@@ -109,7 +109,7 @@ class Model(object):
 ##### Edited version
                 net = conv_4 # [16, 4, 4, 24]
                 shape = net.get_shape().as_list()
-                d = shape[2]
+                self.d, d = shape[2], shape[2]
 
                 _ = tf.range(1, delta=1/d)
                 g = tf.stack( tf.meshgrid(_, _), -1 )[None] # [1, 4, 4, 2]
@@ -132,6 +132,7 @@ class Model(object):
 
                 net = tf.reshape(g_3, [d**4, shape[0], 256])
                 all_g = net
+
 
                 all_feature = [tf.concat([all_singletons[i], all_singletons[j]], axis=-1)
                             for i in range(d*d) for j in range(d*d)] # (256, batch, 52)
@@ -206,6 +207,8 @@ class Model(object):
                 tf.summary.histogram('weights_2', weights_2)
                 tf.summary.histogram('weights_3', weights_3)
 
+                self.weights_1, self.weights_2, self.weights_3 = tf.transpose(weights_1, perm=[1,0,2]), tf.transpose(weights_2, perm=[1,0,2]), tf.transpose(weights_3, perm=[1,0,2])
+
                 all_g = tf.multiply(all_g, weights_3, name="weight_all_g") * all_g.get_shape().as_list()[0]
 
                 # ====================================================================================================
@@ -241,20 +244,41 @@ class Model(object):
 
         g = CONV(self.img, self.q, scope='CONV')
         logits = f_phi(g, scope='f_phi')
+
+        # print(logits.get_shape().as_list())
+
         self.all_preds = tf.nn.softmax(logits)
         self.loss, self.accuracy = build_loss(logits, self.a)
 
         # Add summaries
-        def draw_iqa(img, q, target_a, pred_a):
+        def draw_iqa(img, q, target_a, pred_a, weights):
+            d = self.d
+            H, W = img.shape[:2]
+
+            weights = weights.reshape(d*d, d*d)
+            weights_a2b = np.mean(weights, axis=1).reshape(4,4)
+            weights_b2a = np.mean(np.transpose(weights), axis=1).reshape(4,4)
+            mean_w = (weights_a2b + weights_b2a) / 2
+            mean_w = mean_w / np.max(mean_w)
+
+
+
+            # print(mean_w.shape, img.shape)
+            # print("===========")
+
             fig, ax = tfplot.subplots(figsize=(6, 6))
-            ax.imshow(img)
+            ax.imshow(img, extent=[0,H,0,W])
+            mid = ax.imshow(mean_w, cmap='jet',
+                      alpha=0.5, extent=[0, H, 0, W])
+            fig.colorbar(mid)
             ax.set_title(question2str(q))
             ax.set_xlabel(answer2str(target_a)+answer2str(pred_a, 'Predicted'))
             return fig
 
         try:
+
             tfplot.summary.plot_many('IQA/',
-                                     draw_iqa, [self.img, self.q, self.a, self.all_preds],
+                                     draw_iqa, [self.img, self.q, self.a, self.all_preds, self.weights_1],
                                      max_outputs=4,
                                      collections=["plot_summaries"])
         except:
