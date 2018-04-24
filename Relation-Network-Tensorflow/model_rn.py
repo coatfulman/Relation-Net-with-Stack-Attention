@@ -250,7 +250,7 @@ class Model(object):
             with tf.variable_scope(scope) as scope:
                 log.warn(scope.name)
                 fc_1 = fc(q, 11, name="cm_1")
-                fc_2 = fc(fc_1, 16, name="cm_2")
+                fc_2 = fc(fc_1, 11, name="cm_2")
                 fc_3 = fc(fc_2, 11, name="cm_3")
                 return fc_3
 
