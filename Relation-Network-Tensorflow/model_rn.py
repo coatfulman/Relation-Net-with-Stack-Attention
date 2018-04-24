@@ -169,6 +169,7 @@ class Model(object):
                 # Added for weights before the first MLP.
 
                 all_question = tf.stack(all_question, axis=0)
+                all_question = convert_modal(all_question)
                 all_feature = tf.stack(all_feature, axis=0)
                 all_shape = all_question.get_shape().as_list() #
 
@@ -233,6 +234,7 @@ class Model(object):
             return weight
 
 
+
         def f_phi(g, scope='f_phi'):
             with tf.variable_scope(scope) as scope:
                 log.warn(scope.name)
@@ -240,6 +242,16 @@ class Model(object):
                 fc_2 = fc(fc_1, 256, name='fc_2')
                 fc_2 = slim.dropout(fc_2, keep_prob=0.5, is_training=is_train, scope='fc_3/')
                 fc_3 = fc(fc_2, n, activation_fn=None, name='fc_3')
+                return fc_3
+
+        def convert_modal(q, scope="convert_modal"):
+            # This MLP convert
+
+            with tf.variable_scope(scope) as scope:
+                log.warn(scope.name)
+                fc_1 = fc(q, 11, name="cm_1")
+                fc_2 = fc(fc_1, 16, name="cm_2")
+                fc_3 = fc(fc_2, 11, name="cm_3")
                 return fc_3
 
         g = CONV(self.img, self.q, scope='CONV')
@@ -260,7 +272,6 @@ class Model(object):
             weights_b2a = np.mean(np.transpose(weights), axis=1).reshape(4,4)
             mean_w = (weights_a2b + weights_b2a) / 2
             mean_w = mean_w / np.max(mean_w)
-
 
 
             # print(mean_w.shape, img.shape)
