@@ -176,10 +176,10 @@ class Model(object):
                 q_len = all_shape[2]
 
                 converted_feature1 = tl.fully_connected(\
-                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_1', activation_fn=tf.nn.tanh)
+                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_1', activation_fn=tf.nn.relu)
 
                 converted_feature2 = tl.fully_connected( \
-                    converted_feature1, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_2', activation_fn=tf.nn.tanh)
+                    converted_feature1, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_2', activation_fn=tf.nn.relu)
 
                 converted_feature3 = tl.fully_connected( \
                     converted_feature2, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_3', activation_fn=tf.nn.tanh)
