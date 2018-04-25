@@ -169,21 +169,27 @@ class Model(object):
                 # Added for weights before the first MLP.
 
                 all_question = tf.stack(all_question, axis=0)
-                all_question = convert_modal(all_question)
+                # all_question = convert_modal(all_question)
                 all_feature = tf.stack(all_feature, axis=0)
                 all_shape = all_question.get_shape().as_list() #
 
                 q_len = all_shape[2]
 
-                converted_feature = tl.fully_connected(\
-                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc', activation_fn=tf.nn.tanh)
+                converted_feature1 = tl.fully_connected(\
+                    all_feature, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_1', activation_fn=tf.nn.tanh)
+
+                converted_feature2 = tl.fully_connected( \
+                    converted_feature1, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_2', activation_fn=tf.nn.tanh)
+
+                converted_feature3 = tl.fully_connected( \
+                    converted_feature2, q_len, reuse=tf.AUTO_REUSE, scope='convert_fc_3', activation_fn=tf.nn.tanh)
 
                 # weights1, weights2 [d*d, batch, 1]
                 # all_question [d*d, batch, 11]
 
-                weights_1 = get_weights(all_question, converted_feature)
+                weights_1 = get_weights(all_question, converted_feature3)
 
-                weighted_feature_1 = tf.multiply(weights_1, converted_feature, name="weight_feature_1") * q_len
+                weighted_feature_1 = tf.multiply(weights_1, converted_feature3, name="weight_feature_1") * q_len
 
                 weights_2 = get_weights(all_question, weighted_feature_1)
 
