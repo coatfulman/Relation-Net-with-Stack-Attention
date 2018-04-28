@@ -14,7 +14,7 @@ except:
 
 from ops import conv2d, fc
 from util import log, check_tensor
-
+from tensorflow_compact_bilinear_pooling.compact_bilinear_pooling import compact_bilinear_pooling_layer
 from vqa_util import question2str, answer2str
 
 
@@ -95,6 +95,7 @@ class Model(object):
                 g_4 = fc(g_3, 256, name='g_4')
                 return g_4
 
+
         # Classifier: takes images as input and outputs class label [B, m]
         def CONV(img, q, scope='CONV'):
             with tf.variable_scope(scope) as scope:
@@ -119,11 +120,14 @@ class Model(object):
                 # TODO: flatten
                 all_singletons = [ net[:, int(i / d), int(i % d), :] for i in range(d*d) ]  # (16, batch, 26)
 
-                all_pairs = [ tf.concat([all_singletons[i], all_singletons[j], q], axis=-1)  # q: (batch, 11)
-                            for i in range(d*d) for j in range(d*d) ] # (256=16*16, batch, 63) 11+26+26=63
+                #all_pairs = [ tf.concat([all_singletons[i], all_singletons[j], q], axis=-1)  # q: (batch, 11)
+                 #            for i in range(d*d) for j in range(d*d) ] # (256=16*16, batch, 63) 11+26+26=63
+
+                all_pairs = [compact_bilinear_pooling_layer(tf.concat([all_singletons[i], all_singletons[j]], axis=-1), q, 63) for i in range(d * d) for j in range(d * d)]
+
 
                 net = tf.concat(all_pairs, axis=0) # net=(4096, 63)
-                # print ('\nnet cat', net.shape, '\n')
+                print ('\nnet cat', net.shape, '\n')
 
                 g_1 = fc(net, 256, activation_fn=tf.nn.relu)
                 g_2 = fc(g_1, 256, activation_fn=tf.nn.relu)
