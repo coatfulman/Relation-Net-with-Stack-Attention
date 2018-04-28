@@ -113,6 +113,7 @@ def compact_bilinear_pooling_layer(bottom1, bottom2, output_dim, sum_pool=True,
     # Step 1: Flatten the input tensors and count sketch
     bottom1_flat = tf.reshape(bottom1, [-1, input_dim1])
     bottom2_flat = tf.reshape(bottom2, [-1, input_dim2])
+
     # Essentially:
     #   sketch1 = bottom1 * sparse_sketch_matrix
     #   sketch2 = bottom2 * sparse_sketch_matrix
@@ -130,18 +131,23 @@ def compact_bilinear_pooling_layer(bottom1, bottom2, output_dim, sum_pool=True,
     fft2 = _fft(tf.complex(real=sketch2, imag=tf.zeros_like(sketch2)),
                 sequential, compute_size)
 
+
     # Step 3: Elementwise product
     fft_product = tf.multiply(fft1, fft2)
 
     # Step 4: Inverse FFT and reshape back
     # Compute output shape dynamically: [batch_size, height, width, output_dim]
     cbp_flat = tf.real(_ifft(fft_product, sequential, compute_size))
-    output_shape = tf.add(tf.multiply(tf.shape(bottom1), [1, 1, 1, 0]),
-                          [0, 0, 0, output_dim])
+
+
+    output_shape = [16,1,1,63]
+
     cbp = tf.reshape(cbp_flat, output_shape)
 
     # Step 5: Sum pool over spatial dimensions, if specified
     if sum_pool:
         cbp = tf.reduce_sum(cbp, reduction_indices=[1, 2])
+
+    # print("rt", cbp.shape)
 
     return cbp

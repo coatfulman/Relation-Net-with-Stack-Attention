@@ -96,6 +96,9 @@ class Model(object):
                 return g_4
 
 
+        def double_expand(v):
+            return tf.expand_dims(tf.expand_dims(v,1),1)
+
         # Classifier: takes images as input and outputs class label [B, m]
         def CONV(img, q, scope='CONV'):
             with tf.variable_scope(scope) as scope:
@@ -123,7 +126,11 @@ class Model(object):
                 #all_pairs = [ tf.concat([all_singletons[i], all_singletons[j], q], axis=-1)  # q: (batch, 11)
                  #            for i in range(d*d) for j in range(d*d) ] # (256=16*16, batch, 63) 11+26+26=63
 
-                all_pairs = [compact_bilinear_pooling_layer(tf.concat([all_singletons[i], all_singletons[j]], axis=-1), q, 63) for i in range(d * d) for j in range(d * d)]
+
+                # print(tf.concat([all_singletons[0], all_singletons[0]], axis=-1).shape, q.shape)
+
+                all_pairs = [compact_bilinear_pooling_layer(double_expand(tf.concat([all_singletons[i], all_singletons[j]], axis=-1))\
+                                                            , double_expand(q), 63) for i in range(d * d) for j in range(d * d)]
 
 
                 net = tf.concat(all_pairs, axis=0) # net=(4096, 63)
